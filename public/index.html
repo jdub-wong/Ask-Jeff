@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ask Jeff</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --dark-maroon: #2f0418;
+      --maroon: #481e2a;
+      --red: #eb0909;
+      --light-gray: #ebebeb;
+      --mid-gray: #959595;
+      --white: #ffffff;
+    }
+
+    body {
+      background-color: var(--light-gray);
+      color: var(--dark-maroon);
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 20px 60px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 20px;
+      border: 3px solid var(--maroon);
+    }
+
+    .title {
+      font-family: Arial, sans-serif;
+      font-size: clamp(40px, 10vw, 72px);
+      font-weight: 300;
+      letter-spacing: 6px;
+      color: var(--dark-maroon);
+      line-height: 1;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .title span {
+      color: var(--red);
+    }
+
+    .subtitle {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: var(--mid-gray);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      font-weight: 400;
+    }
+
+    /* ── Main card ── */
+    .card {
+      width: 100%;
+      max-width: 700px;
+      background: var(--white);
+      border: 1px solid #d8d8d8;
+      padding: 36px;
+      box-shadow: 0 2px 12px rgba(47,4,24,0.08);
+    }
+
+    /* ── Input area ── */
+    .input-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      margin-bottom: 10px;
+      display: block;
+      font-weight: 700;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    textarea {
+      flex: 1;
+      background: var(--white);
+      border: 1px solid #d8d8d8;
+      color: var(--dark-maroon);
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      padding: 12px 16px;
+      resize: none;
+      height: 80px;
+      outline: none;
+      transition: border-color 0.2s;
+      line-height: 1.4;
+    }
+
+    textarea::placeholder {
+      color: var(--mid-gray);
+    }
+
+    textarea:focus {
+      border-color: var(--maroon);
+    }
+
+    textarea:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .ask-btn {
+      background: var(--red);
+      border: none;
+      color: var(--white);
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 0 24px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+      align-self: stretch;
+    }
+
+    .ask-btn:hover:not(:disabled) {
+      background: var(--dark-maroon);
+    }
+
+    .ask-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Suggestions ── */
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+
+    .suggestion-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      width: 100%;
+      margin-bottom: 2px;
+      font-weight: 700;
+    }
+
+    .suggestion {
+      background: transparent;
+      border: 1px solid var(--maroon);
+      color: var(--maroon);
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .suggestion:hover {
+      background: var(--maroon);
+      color: var(--white);
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--light-gray);
+      margin-bottom: 24px;
+    }
+
+    /* ── Response area ── */
+    .response-area {
+      min-height: 100px;
+    }
+
+    .response-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .response-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--light-gray);
+      border: 1px solid var(--mid-gray);
+      flex-shrink: 0;
+    }
+
+    .status-dot.thinking {
+      background: var(--maroon);
+      border-color: var(--maroon);
+      animation: pulse 0.8s ease-in-out infinite;
+    }
+
+    .status-dot.responding {
+      background: var(--red);
+      border-color: var(--red);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    .response-text {
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--dark-maroon);
+      min-height: 60px;
+      font-weight: 200;
+    }
+
+    .response-text.empty {
+      color: var(--mid-gray);
+      font-size: 14px;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 18px;
+      background: var(--red);
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: blink 0.7s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--mid-gray);
+      text-transform: uppercase;
+    }
+
+    /* ── Voice toggle ── */
+    .voice-toggle {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid var(--light-gray);
+      color: var(--mid-gray);
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .voice-toggle:hover {
+      border-color: var(--maroon);
+      color: var(--maroon);
+    }
+
+    .voice-toggle.active {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* ── Error ── */
+    .error-text {
+      color: var(--red);
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <img class="avatar" src="Jeff.jpeg" alt="Jeff">
+    <h1 class="title">ASK <span>JEFF</span></h1>
+    <p class="subtitle">Obvious answers to obvious questions</p>
+  </header>
+
+  <main class="card">
+    <label class="input-label" for="question">Your question</label>
+    <div class="input-row">
+      <textarea
+        id="question"
+        placeholder="Go ahead. Ask something embarrassing."
+        maxlength="500"
+        rows="3"
+      ></textarea>
+      <button class="ask-btn" id="ask-btn">ASK<br>JEFF</button>
+    </div>
+
+    <div class="suggestions">
+      <span class="suggestion-label">Try one of these</span>
+      <button class="suggestion" data-q="What are the days of the week?">What are the days of the week?</button>
+      <button class="suggestion" data-q="How do you send login details to someone?">How do you send login details to someone?</button>
+      <button class="suggestion" data-q="Why is the sky blue?">Why is the sky blue?</button>
+      <button class="suggestion" data-q="What is 2 + 2?">What is 2 + 2?</button>
+      <button class="suggestion" data-q="How do I boil an egg?">How do I boil an egg?</button>
+    </div>
+
+    <hr class="divider">
+
+    <div class="response-area">
+      <div class="response-header">
+        <div class="status-dot" id="status-dot"></div>
+        <span class="response-label" id="response-label">waiting for a question</span>
+        <button class="voice-toggle" id="voice-toggle" title="Toggle voice">
+          <span id="voice-icon">🔊</span> <span id="voice-label">Voice on</span>
+        </button>
+      </div>
+      <div class="response-text empty" id="response-text">
+        Jeff is waiting. Unfortunately.
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>Jeff knows everything &nbsp;·&nbsp; You just didn't think to Google it</p>
+  </footer>
+
+  <script>
+    const questionEl = document.getElementById('question');
+    const askBtn = document.getElementById('ask-btn');
+    const responseText = document.getElementById('response-text');
+    const statusDot = document.getElementById('status-dot');
+    const responseLabel = document.getElementById('response-label');
+    const voiceToggle = document.getElementById('voice-toggle');
+    const voiceIcon = document.getElementById('voice-icon');
+    const voiceLabel = document.getElementById('voice-label');
+
+    // ── Voice setup ──
+    let voiceEnabled = true;
+    let currentAudio = null;
+
+    voiceToggle.classList.add('active');
+
+    voiceToggle.addEventListener('click', () => {
+      voiceEnabled = !voiceEnabled;
+      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      if (voiceEnabled) {
+        voiceToggle.classList.add('active');
+        voiceIcon.textContent = '🔊';
+        voiceLabel.textContent = 'Voice on';
+      } else {
+        voiceToggle.classList.remove('active');
+        voiceIcon.textContent = '🔇';
+        voiceLabel.textContent = 'Voice off';
+      }
+    });
+
+    async function speak(text) {
+      if (!voiceEnabled) return;
+      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      try {
+        const res = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        currentAudio = new Audio(url);
+        currentAudio.play();
+        currentAudio.onended = () => URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error('TTS error:', e);
+      }
+    }
+
+    // ── Suggestions ──
+    document.querySelectorAll('.suggestion').forEach(btn => {
+      btn.addEventListener('click', () => {
+        questionEl.value = btn.dataset.q;
+        questionEl.focus();
+      });
+    });
+
+    // Submit on Enter (not Shift+Enter)
+    questionEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        askJeff();
+      }
+    });
+
+    askBtn.addEventListener('click', askJeff);
+
+    function setStatus(state) {
+      statusDot.className = 'status-dot';
+      if (state === 'thinking') {
+        statusDot.classList.add('thinking');
+        responseLabel.textContent = 'Jeff is thinking...';
+      } else if (state === 'responding') {
+        statusDot.classList.add('responding');
+        responseLabel.textContent = 'Jeff says';
+      } else if (state === 'done') {
+        responseLabel.textContent = 'Jeff has spoken';
+      } else {
+        responseLabel.textContent = 'Waiting for a question';
+      }
+    }
+
+    async function askJeff() {
+      const question = questionEl.value.trim();
+      if (!question) return;
+
+      window.speechSynthesis.cancel();
+      questionEl.disabled = true;
+      askBtn.disabled = true;
+      setStatus('thinking');
+
+      responseText.className = 'response-text';
+      responseText.innerHTML = '<span class="cursor"></span>';
+
+      try {
+        const res = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          responseText.textContent = err.error || 'Something went wrong.';
+          responseText.classList.add('error-text');
+          setStatus('idle');
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullText = '';
+        let streaming = false;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const payload = line.slice(6).trim();
+
+            if (payload === '[DONE]') {
+              responseText.innerHTML = escapeHtml(fullText);
+              setStatus('done');
+              speak(fullText);
+              break;
+            }
+
+            try {
+              const chunk = JSON.parse(payload);
+              if (chunk.error) {
+                responseText.textContent = chunk.error;
+                responseText.classList.add('error-text');
+                setStatus('idle');
+                break;
+              }
+              if (chunk.text) {
+                if (!streaming) {
+                  streaming = true;
+                  setStatus('responding');
+                  responseText.innerHTML = '';
+                }
+                fullText += chunk.text;
+                responseText.innerHTML = escapeHtml(fullText) + '<span class="cursor"></span>';
+              }
+            } catch {
+              // malformed chunk, skip
+            }
+          }
+        }
+
+      } catch (err) {
+        responseText.textContent = 'Connection error.';
+        responseText.classList.add('error-text');
+        setStatus('idle');
+      } finally {
+        questionEl.disabled = false;
+        askBtn.disabled = false;
+        questionEl.focus();
+      }
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+
+</body>
+</html>
