@@ -104,7 +104,7 @@ app.post('/api/speak', async (req, res) => {
         },
         body: JSON.stringify({
           text: text.trim(),
-          model_id: 'eleven_turbo_v2',
+          model_id: 'eleven_turbo_v2_5',
           voice_settings: {
             stability: 0.45,
             similarity_boost: 0.80,
@@ -117,8 +117,8 @@ app.post('/api/speak', async (req, res) => {
 
     if (!ttsRes.ok) {
       const err = await ttsRes.text();
-      console.error('ElevenLabs error:', err);
-      return res.status(500).json({ error: 'TTS failed' });
+      console.error('ElevenLabs error:', ttsRes.status, err);
+      return res.status(500).json({ error: `TTS failed: ${ttsRes.status} ${err}` });
     }
 
     res.setHeader('Content-Type', 'audio/mpeg');
