@@ -121,8 +121,9 @@ app.post('/api/speak', async (req, res) => {
       return res.status(500).json({ error: `TTS failed: ${ttsRes.status} ${err}` });
     }
 
+    const audioBuffer = await ttsRes.arrayBuffer();
     res.setHeader('Content-Type', 'audio/mpeg');
-    ttsRes.body.pipe(res);
+    res.send(Buffer.from(audioBuffer));
   } catch (err) {
     console.error('TTS error:', err.message);
     res.status(500).json({ error: 'TTS failed' });
