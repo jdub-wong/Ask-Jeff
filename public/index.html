@@ -374,12 +374,15 @@
     // ── Voice setup ──
     let voiceEnabled = true;
     let currentAudio = null;
+    let audioQueue = [];
+    let isPlaying = false;
+    let sentenceBuffer = '';
 
     voiceToggle.classList.add('active');
 
     voiceToggle.addEventListener('click', () => {
       voiceEnabled = !voiceEnabled;
-      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      stopAllAudio();
       if (voiceEnabled) {
         voiceToggle.classList.add('active');
         voiceIcon.textContent = '🔊';
@@ -391,23 +394,67 @@
       }
     });
 
-    async function speak(text) {
-      if (!voiceEnabled) return;
+    function stopAllAudio() {
       if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-      try {
-        const res = await fetch('/api/speak', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-        });
-        if (!res.ok) return;
-        const blob = await res.blob();
+      audioQueue = [];
+      isPlaying = false;
+      sentenceBuffer = '';
+    }
+
+    // Fetch audio for a sentence in the background, returns a Promise<Blob|null>
+    function fetchAudio(text) {
+      return fetch('/api/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      }).then(res => res.ok ? res.blob() : null).catch(() => null);
+    }
+
+    // Add a sentence to the queue (starts fetching immediately)
+    function queueSentence(text) {
+      if (!voiceEnabled || !text.trim()) return;
+      const promise = fetchAudio(text.trim());
+      audioQueue.push(promise);
+      playNext();
+    }
+
+    async function playNext() {
+      if (isPlaying || audioQueue.length === 0) return;
+      isPlaying = true;
+      const promise = audioQueue.shift();
+      const blob = await promise;
+      if (blob) {
         const url = URL.createObjectURL(blob);
         currentAudio = new Audio(url);
         currentAudio.play();
-        currentAudio.onended = () => URL.revokeObjectURL(url);
-      } catch (e) {
-        console.error('TTS error:', e);
+        currentAudio.onended = () => {
+          URL.revokeObjectURL(url);
+          currentAudio = null;
+          isPlaying = false;
+          playNext();
+        };
+      } else {
+        isPlaying = false;
+        playNext();
+      }
+    }
+
+    // Called with each text chunk — buffers until sentence boundary then queues audio
+    function feedText(chunk) {
+      sentenceBuffer += chunk;
+      // Split on sentence-ending punctuation followed by a space or end
+      const match = sentenceBuffer.match(/^(.*?[.!?])(\s+|$)([\s\S]*)$/);
+      if (match) {
+        queueSentence(match[1]);
+        sentenceBuffer = match[3];
+      }
+    }
+
+    // Called when streaming is done — flush any remaining text
+    function flushText() {
+      if (sentenceBuffer.trim()) {
+        queueSentence(sentenceBuffer);
+        sentenceBuffer = '';
       }
     }
 
@@ -448,7 +495,7 @@
       const question = questionEl.value.trim();
       if (!question) return;
 
-      window.speechSynthesis.cancel();
+      stopAllAudio();
       questionEl.disabled = true;
       askBtn.disabled = true;
       setStatus('thinking');
@@ -492,7 +539,7 @@
             if (payload === '[DONE]') {
               responseText.innerHTML = escapeHtml(fullText);
               setStatus('done');
-              speak(fullText);
+              flushText();
               break;
             }
 
@@ -512,6 +559,7 @@
                 }
                 fullText += chunk.text;
                 responseText.innerHTML = escapeHtml(fullText) + '<span class="cursor"></span>';
+                feedText(chunk.text);
               }
             } catch {
               // malformed chunk, skip
