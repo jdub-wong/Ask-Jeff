@@ -78,9 +78,17 @@ app.post('/api/ask', async (req, res) => {
   }
 });
 
-// ── ElevenLabs TTS ──
-// Voice: "George" — British, authoritative, dry. Perfect for Jeff.
+// ── ElevenLabs config ──
 const ELEVENLABS_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb';
+
+// Expose voice config to frontend so it can call ElevenLabs directly
+// (avoids Railway's data-centre IP being blocked by ElevenLabs free tier)
+app.get('/api/config', (req, res) => {
+  res.json({
+    elevenLabsKey: process.env.ELEVENLABS_API_KEY || '',
+    voiceId: ELEVENLABS_VOICE_ID,
+  });
+});
 
 app.post('/api/speak', async (req, res) => {
   const { text } = req.body;

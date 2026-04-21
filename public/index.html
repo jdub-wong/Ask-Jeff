@@ -377,6 +377,10 @@
     let audioQueue = [];
     let isPlaying = false;
     let sentenceBuffer = '';
+    let elConfig = null; // { elevenLabsKey, voiceId }
+
+    // Fetch ElevenLabs config from server on load
+    fetch('/api/config').then(r => r.json()).then(cfg => { elConfig = cfg; }).catch(() => {});
 
     voiceToggle.classList.add('active');
 
@@ -401,12 +405,20 @@
       sentenceBuffer = '';
     }
 
-    // Fetch audio for a sentence in the background, returns a Promise<Blob|null>
+    // Fetch audio directly from ElevenLabs (bypasses Railway IP restrictions)
     function fetchAudio(text) {
-      return fetch('/api/speak', {
+      if (!elConfig || !elConfig.elevenLabsKey) return Promise.resolve(null);
+      return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elConfig.voiceId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        headers: {
+          'xi-api-key': elConfig.elevenLabsKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          model_id: 'eleven_turbo_v2_5',
+          voice_settings: { stability: 0.45, similarity_boost: 0.80, style: 0.25, use_speaker_boost: true },
+        }),
       }).then(res => res.ok ? res.blob() : null).catch(() => null);
     }
 
