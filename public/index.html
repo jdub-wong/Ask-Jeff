@@ -373,18 +373,31 @@
 
     // ── Voice setup ──
     let voiceEnabled = true;
-    let currentAudio = null;
+    let audioContext = null;
     let audioQueue = [];
     let isPlaying = false;
     let sentenceBuffer = '';
-    let elConfig = null; // { elevenLabsKey, voiceId }
+    let elConfig = null;
 
     // Fetch ElevenLabs config from server on load
     fetch('/api/config').then(r => r.json()).then(cfg => { elConfig = cfg; }).catch(() => {});
 
     voiceToggle.classList.add('active');
 
+    // Unlock AudioContext on first user tap — required for iOS/mobile
+    function unlockAudio() {
+      if (audioContext) return;
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      // Play a silent buffer to unlock audio on iOS Safari
+      const buf = audioContext.createBuffer(1, 1, 22050);
+      const src = audioContext.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioContext.destination);
+      src.start(0);
+    }
+
     voiceToggle.addEventListener('click', () => {
+      unlockAudio();
       voiceEnabled = !voiceEnabled;
       stopAllAudio();
       if (voiceEnabled) {
@@ -399,13 +412,12 @@
     });
 
     function stopAllAudio() {
-      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
       audioQueue = [];
       isPlaying = false;
       sentenceBuffer = '';
     }
 
-    // Fetch audio directly from ElevenLabs (bypasses Railway IP restrictions)
+    // Fetch audio from ElevenLabs directly from browser (avoids Railway IP block)
     function fetchAudio(text) {
       if (!elConfig || !elConfig.elevenLabsKey) return Promise.resolve(null);
       return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elConfig.voiceId}`, {
@@ -419,10 +431,9 @@
           model_id: 'eleven_turbo_v2_5',
           voice_settings: { stability: 0.45, similarity_boost: 0.80, style: 0.25, use_speaker_boost: true },
         }),
-      }).then(res => res.ok ? res.blob() : null).catch(() => null);
+      }).then(res => res.ok ? res.arrayBuffer() : null).catch(() => null);
     }
 
-    // Add a sentence to the queue (starts fetching immediately)
     function queueSentence(text) {
       if (!voiceEnabled || !text.trim()) return;
       const promise = fetchAudio(text.trim());
@@ -431,20 +442,25 @@
     }
 
     async function playNext() {
-      if (isPlaying || audioQueue.length === 0) return;
+      if (isPlaying || audioQueue.length === 0 || !audioContext) return;
       isPlaying = true;
       const promise = audioQueue.shift();
-      const blob = await promise;
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        currentAudio = new Audio(url);
-        currentAudio.play();
-        currentAudio.onended = () => {
-          URL.revokeObjectURL(url);
-          currentAudio = null;
+      const arrayBuffer = await promise;
+      if (arrayBuffer) {
+        try {
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          const source = audioContext.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(audioContext.destination);
+          source.start(0);
+          source.onended = () => {
+            isPlaying = false;
+            playNext();
+          };
+        } catch (e) {
           isPlaying = false;
           playNext();
-        };
+        }
       } else {
         isPlaying = false;
         playNext();
@@ -507,6 +523,7 @@
       const question = questionEl.value.trim();
       if (!question) return;
 
+      unlockAudio(); // Must be called directly from user tap for iOS
       stopAllAudio();
       questionEl.disabled = true;
       askBtn.disabled = true;
